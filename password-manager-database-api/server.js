@@ -1,26 +1,28 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const bodyParser = require('body-parser');
+
 const app = express();
-
-// todo handle cors
 app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// Enable 'application/json' and 'application/x-www-form-urlencoded' content-type
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const router = require("./app/routes/routes");
+app.use('/api/password-manager', router);
 
 const db = require("./app/models");
 db.sequelize.sync();
 
-require("./app/routes/routes")(app);
-
-app.get('/', (req, res) => {
-  res.send("OK")
-})
-
 const PORT = process.env.NODE_DOCKER_PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}.`);
+  console.info(`Server is running on port ${process.env.NODE_LOCAL_PORT}.`);
 });
 
+app.get('/', (req, res) => {
+  res.send(`Server is running on port ${process.env.NODE_LOCAL_PORT}.`);
+})
+
+app.get('/available',  (req, res) => {
+  res.send({success: true});
+})

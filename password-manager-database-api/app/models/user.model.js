@@ -1,5 +1,5 @@
 module.exports = (sequelize, Sequelize) => {
-  const User = sequelize.define("user", {
+  return sequelize.define("user", {
     firstName: {
       type: Sequelize.STRING,
       allowNull: false,
@@ -16,13 +16,23 @@ module.exports = (sequelize, Sequelize) => {
       type: Sequelize.STRING,
       allowNull: false,
     },
-  },{
+    serverSalt: {
+      type: Sequelize.STRING,
+      allowNull: false,
+    },
+    iv: {
+      type: Sequelize.STRING,
+      allowNull: false,
+    },
+    encryptedSymmetricKey: {
+      type: Sequelize.TEXT,
+      allowNull: false,
+    },
+  }, {
     uniqueKeys: {
       actions_unique: {
         fields: ['email']
       }
     }
   });
-
-  return User;
 };

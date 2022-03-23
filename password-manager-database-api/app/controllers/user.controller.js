@@ -1,11 +1,21 @@
+const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const db = require("../models");
 const User = db.user;
+const Session = db.session
 const Op = db.Sequelize.Op;
+
+function getPBKDF2(password, salt, iterationsCount) {
+    const derivedKey = crypto.pbkdf2Sync(password, salt, iterationsCount, 32, 'sha512');
+    return derivedKey.toString('hex')
+}
+
 
 // Create and save a new User
 exports.create = (req, res) => {
     console.log(req.body)
-    if (!req.body.firstName && !req.body.lastName && !req.body.email && !req.body.password) {
+    if (!req.body.firstName && !req.body.lastName && !req.body.email && !req.body.password &&
+        !req.body.iv && !req.body.encryptedSymmetricKey) {
         res.status(400).send({
             message: "Content missing required parameters!",
             success: false
@@ -13,30 +23,47 @@ exports.create = (req, res) => {
         return;
     }
 
+    const serverSalt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = getPBKDF2(req.body.password, serverSalt, 100000)
+
     // Create a new User
     const user = {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         email: req.body.email,
-        password: req.body.password,
+        password: passwordHash,
+        serverSalt: serverSalt,
+        iv: req.body.iv,
+        encryptedSymmetricKey: req.body.encryptedSymmetricKey
     };
 
     // CreateTable database
     User.create(user)
-        // todo add success
         .then(data => {
-            console.log(data)
-            res.send({id: data.dataValues.id, success: true});
+            // Create a new session
+            const session_id = uuidv4();
+            const session = {
+                session_id: session_id,
+                expires: new Date(Date.now() + 60*60*24*1000).toISOString(),
+                user_id: data.dataValues.id,
+            };
+            Session.create(session).then(()=>{
+                res.send(
+                    {id: session_id, success: true}
+                );
+            }).catch(err => {
+                console.log(err)
+                res.status(500).send({message: "Some error occurred while creating a new 'user'.", success: false});
+            })
         })
         .catch(err => {
             console.log(err)
             res.status(500).send({
-                message: "Some error occurred while adding new 'user'.",
+                message: "Some error occurred while creating a new 'user'.",
                 success: false
             });
         });
 };
-
 
 exports.login = (req, res) => {
     if (!req.body.email || !req.body.password) {
@@ -48,29 +75,50 @@ exports.login = (req, res) => {
     }
 
     const email = req.body.email;
-    const password = req.body.password;
     const condition = {
         [Op.and]:
             [
                 {email: `${email}`},
-                {password: `${password}`}
             ]
     };
 
     User.findAll({where: condition})
         .then(data => {
-            // todo add success
-            console.log(data)
-            let id = data[0]?.dataValues?.id;
-            let success = true;
-            if (id === null || id === undefined) {
-                success = false
+            const serverSalt = data[0]?.dataValues?.serverSalt;
+            if (serverSalt !== null && serverSalt !== undefined) {
+                let passwordHash = getPBKDF2(req.body.password, serverSalt, 100000)
+                if (data[0]?.dataValues?.password === passwordHash && data[0]?.dataValues?.id !== null || data[0]?.dataValues?.id !== undefined) {
+                    // Create a new session
+                    const session_id = uuidv4();
+                    const session = {
+                        session_id: session_id,
+                        expires: new Date(Date.now() + 60*60*24*1000).toISOString(),
+                        user_id: data[0]?.dataValues?.id,
+                    };
+                    Session.create(session).then(() => {
+                        res.send({
+                            id: session_id,
+                            iv: data[0]?.dataValues?.iv,
+                            encryptedSymmetricKey: data[0]?.dataValues?.encryptedSymmetricKey,
+                            success: true
+                        });
+                    }).catch(() => {
+                        res.status(500).send({
+                            message: "Some error occurred while finding user.",
+                            success: false
+                        });
+                    })
+                }
+            } else {
+                res.status(500).send({
+                    message: "Some error occurred while finding user.",
+                    success: false
+                });
             }
-            res.send({id: id, success: success});
         })
         .catch(err => {
             res.status(500).send({
-                message: "Some error occurred while retrieving user.",
+                message: "Some error occurred while finding user.",
                 success: false
             });
             console.log(err)
@@ -89,11 +137,11 @@ exports.update = (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
     const condition = {
-      [Op.and]:
-          [
-            {email: `${email}`},
-            {password: `${password}`}
-          ]
+        [Op.and]:
+            [
+                {email: `${email}`},
+                {password: `${password}`}
+            ]
     };
 
     User.update(req.body, {
@@ -133,11 +181,11 @@ exports.delete = (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
     const condition = {
-      [Op.and]:
-          [
-            {email: `${email}`},
-            {password: `${password}`}
-          ]
+        [Op.and]:
+            [
+                {email: `${email}`},
+                {password: `${password}`}
+            ]
     };
 
     User.destroy({
@@ -164,3 +212,22 @@ exports.delete = (req, res) => {
             console.log(err)
         });
 };
+
+expiredCleaner = () => {
+    console.log("here", Date.now())
+    Session.destroy({
+        where: {
+            expires: {
+                [Op.lt]: new Date(new Date()).toISOString()
+            }
+        }
+    }).then(data => {
+        console.log("destroying")
+        console.log(data)
+    }).catch(err => {
+        console.log(err)
+    });
+
+}
+// Delete sessions every 12 hours
+setInterval(expiredCleaner, 60*60*12 * 1000);

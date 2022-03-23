@@ -1,23 +1,7 @@
 module.exports = (sequelize, Sequelize) => {
-  const Password = sequelize.define("password", {
-    title: {
-      type: Sequelize.STRING,
-      allowNull: false,
-    },
-    description: {
-      type: Sequelize.STRING,
-      allowNull: false,
-    },
-    url: {
-      type: Sequelize.STRING,
-      allowNull: false,
-    },
-    username: {
-      type: Sequelize.STRING,
-      allowNull: false,
-    },
-    password: {
-      type: Sequelize.STRING,
+  return sequelize.define("password", {
+    item: {
+      type: Sequelize.TEXT,
       allowNull: false,
     },
     userID: {
@@ -25,6 +9,4 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: false,
     },
   });
-
-  return Password;
 };

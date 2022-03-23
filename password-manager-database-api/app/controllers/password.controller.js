@@ -1,10 +1,11 @@
 const db = require("../models");
 const Password = db.password;
+const Session = db.session
 const Op = db.Sequelize.Op;
 
 // Create and save a new Password
-exports.create = (req, res) => {
-    if (!req.body.title || !req.body.description || !req.body.url || !req.body.username || !req.body.password || !req.body.userID) {
+exports.create = async (req, res) => {
+    if (!req.body.item || !req.body.userID) {
         res.status(400).send({
             message: "Content missing required parameters!",
         });
@@ -13,12 +14,8 @@ exports.create = (req, res) => {
 
     // Create a new Password
     const password = {
-        title: req.body.title,
-        description: req.body.description,
-        url: req.body.url,
-        username: req.body.username,
-        password: req.body.password,
-        userID: req.body.userID,
+        item: req.body.item,
+        userID: await findUserID(req.body.userID),
     };
 
     // CreateTable database
@@ -41,7 +38,7 @@ exports.create = (req, res) => {
 };
 
 
-exports.fetch = (req, res) => {
+exports.fetch = async (req, res) => {
     if (!req.body.userID) {
         res.status(400).send({
             message: "Content missing required parameters!",
@@ -49,7 +46,7 @@ exports.fetch = (req, res) => {
         return;
     }
 
-    const userID = req.body.userID;
+    const userID = await findUserID(req.body.userID);
 
     const condition = {userID: `${userID}`};
     Password.findAll({where: condition})
@@ -58,7 +55,6 @@ exports.fetch = (req, res) => {
             data.forEach(password => {
                 passwords.push(password.dataValues)
             })
-            // todo add success
             console.log(passwords)
             res.send(passwords);
         })
@@ -71,8 +67,8 @@ exports.fetch = (req, res) => {
         });
 };
 
-exports.update = (req, res) => {
-    if (!req.body.id || !req.body.title || !req.body.description || !req.body.url || !req.body.username || !req.body.password || !req.body.userID) {
+exports.update = async (req, res) => {
+    if (!req.body.id || !req.body.item || !req.body.userID) {
         res.status(400).send({
             message: "Content missing required parameters!",
         });
@@ -80,9 +76,20 @@ exports.update = (req, res) => {
     }
 
     const id = req.body.id;
-    console.log(req.body)
-    const condition = {id: `${id}`};
-    Password.update(req.body, {
+    const userID = await findUserID(req.body.userID);
+    // Create a new Password
+    const password = {
+        item: req.body.item,
+        userID: userID,
+    };
+    const condition = {
+        [Op.and]:
+            [
+                {id: `${id}`},
+                {userID: `${userID}`}
+            ]
+    };
+    Password.update(password, {
         where: condition
     })
         .then(num => {
@@ -108,7 +115,7 @@ exports.update = (req, res) => {
         });
 };
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res) => {
     if (!req.body.id || !req.body.userID) {
         res.status(400).send({
             message: "Content missing required parameters!",
@@ -117,9 +124,9 @@ exports.delete = (req, res) => {
     }
 
     const id = req.body.id;
-    const userID = req.body.userID;
+    const userID = await findUserID(req.body.userID);
 
-    const condition =  {
+    const condition = {
         [Op.and]:
             [
                 {id: `${id}`},
@@ -151,3 +158,17 @@ exports.delete = (req, res) => {
             console.log(err)
         });
 };
+
+findUserID = async (session_id) => {
+    return await Session.findOne({where:
+                    {session_id: `${session_id}`}
+           })
+        .then(data => {
+            console.log("session id: ", data?.dataValues)
+            console.log("returning: ", data?.dataValues?.user_id)
+            return data?.dataValues?.user_id
+        })
+        .catch(err => {
+            return err
+        })
+}
