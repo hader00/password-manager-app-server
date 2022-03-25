@@ -1,11 +1,13 @@
 # Docker Compose 
+## Prerequisites
+Docker needs to be installed, visit: [www.docker.com](https://www.docker.com)
 
 ## Run
 ```bash
 docker-compose up
 ```
 
-## Rebuil
+## Rebuild
 ```bash
 docker-compose up --build
 ```
@@ -15,10 +17,13 @@ docker-compose up --build
 docker-compose down
 ```
 
-To remove all containers and images:
+## To remove all containers and images:
 ```bash
 docker-compose down --rmi all
 ```
 
 ## API
-localhost:$NODE_DOCKER_PORT/api/password-manager
+After start the password manager api will be accessible on:
+http://localhost:$NODE_DOCKER_PORT
+
+Default $NODE_DOCKER_PORT is 6868
