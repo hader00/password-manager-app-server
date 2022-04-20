@@ -19,6 +19,8 @@ Chromium based browser extension is accessible on: [github.com/hader00/password-
 ### Required dependencies
 [docker](https://www.docker.com)
 
+[docker compose](https://docs.docker.com/compose/cli-command/) (v2)
+
 ### How to build and start locally
 1. Clone the repository,
 2. Install required dependencies,
@@ -28,6 +30,11 @@ Chromium based browser extension is accessible on: [github.com/hader00/password-
 
 ### Available Scripts
 Start and build docker project: `docker-compose up`
+
 Rebuild docker project: `docker-compose up --build`
+
 Stop the running image: `docker-compose down`
-Stop and remove all containers and images of the project: `docker-compose down --rmi all`
+
+Stop and remove all containers and images of the project:
+
+`docker-compose down --rmi all`
